@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -14,6 +15,11 @@ type Task struct {
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type TaskUpdate struct {
+	Description *string
+	Status      *string
 }
 
 const filePath = "tasks.json"
@@ -34,8 +40,12 @@ func main() {
 				return
 			}
 		}
-		tasks := getTasks(status)
-		for _, task := range tasks {
+		tasks, err := getTasks(status)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, task := range *tasks {
 			fmt.Println(task)
 		}
 		return
@@ -45,94 +55,129 @@ func main() {
 			return
 		}
 		description := os.Args[2]
-		task := insertTask(description)
+		task, err := insertTask(description)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
 		fmt.Printf("success add task with id: %d\n", task.Id)
+		return
+	} else if command == "update" {
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task id")
+			return
+		}
+		if len(os.Args) < 4 {
+			fmt.Println("please fill task description")
+			return
+		}
+
+		id, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("failed cast to integer: %s\n", err)
+			return
+		}
+		description := os.Args[3]
+		taskUpdate := &TaskUpdate{
+			Description: &description,
+		}
+		task, err := updateTask(id, *taskUpdate)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println(task)
 		return
 	}
 }
 
-func getTasks(status string) []Task {
+func getTasks(status string) (*[]Task, error) {
 	allTasks, err := safeReadFile()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if status == "ALL" {
-		return allTasks
+		return allTasks, nil
 	}
 
 	var filteredTasks []Task
-	for _, task := range allTasks {
+	for _, task := range *allTasks {
 		if task.Status == status {
 			filteredTasks = append(filteredTasks, task)
 		}
 	}
 
-	return filteredTasks
+	return &filteredTasks, nil
 }
 
-func insertTask(description string) Task {
+func insertTask(description string) (*Task, error) {
 	allTasks, err := safeReadFile()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	lastId := 0
-	if len(allTasks) > 0 {
-		lastTask := allTasks[len(allTasks)-1]
+	if len(*allTasks) > 0 {
+		lastTask := (*allTasks)[len(*allTasks)-1]
 		lastId = lastTask.Id
 	}
 	task := Task{
 		Id:          lastId + 1,
 		Description: description,
 	}
-	allTasks = append(allTasks, task)
+	*allTasks = append(*allTasks, task)
 
 	// write file
 	jsonBytes, err := json.Marshal(allTasks)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return task
+	return &task, nil
 }
 
-func updateStatus(id int, status string) Task {
+func updateTask(id int, update TaskUpdate) (*Task, error) {
 	allTasks, err := safeReadFile()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	var selectedTask Task
-	for _, task := range allTasks {
+
+	for i := range *allTasks {
+		task := &(*allTasks)[i]
 		if task.Id == id {
-			task.Status = status
-			selectedTask = task
-			break
+			fmt.Println("masa ga masuk sini ya")
+			if update.Description != nil {
+				task.Description = *update.Description
+			}
+			if update.Status != nil {
+				task.Status = *update.Status
+			}
+
+			jsonBytes, err := json.MarshalIndent(allTasks, "", "  ")
+			if err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
+				return nil, err
+			}
+
+			return task, nil
 		}
 	}
-	if selectedTask {
-		// write file
-		jsonBytes, err := json.Marshal(allTasks)
-		if err != nil {
-			panic(err)
-		}
-		if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
-			panic(err)
-
-		}
-	}
-
+	return nil, fmt.Errorf("task with id %d not found", id)
 }
 
-func safeReadFile() ([]Task, error) {
+func safeReadFile() (*[]Task, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			if err := os.WriteFile(filePath, []byte("[]"), 0644); err != nil {
 				return nil, fmt.Errorf("failed to create %s: %w", filePath, err)
 			}
-			return []Task{}, nil
+			return &[]Task{}, nil
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", filePath, err)
 	}
@@ -142,5 +187,5 @@ func safeReadFile() ([]Task, error) {
 		return nil, fmt.Errorf("failed to parse %s: %w", filePath, err)
 	}
 
-	return tasks, err
+	return &tasks, err
 }
