@@ -148,7 +148,6 @@ func updateTask(id int, update TaskUpdate) (*Task, error) {
 	for i := range *allTasks {
 		task := &(*allTasks)[i]
 		if task.Id == id {
-			fmt.Println("masa ga masuk sini ya")
 			if update.Description != nil {
 				task.Description = *update.Description
 			}
@@ -167,6 +166,7 @@ func updateTask(id int, update TaskUpdate) (*Task, error) {
 			return task, nil
 		}
 	}
+
 	return nil, fmt.Errorf("task with id %d not found", id)
 }
 
