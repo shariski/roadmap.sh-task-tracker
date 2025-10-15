@@ -9,12 +9,14 @@ import (
 )
 
 type Task struct {
-	Id          string    `json:"id"`
+	Id          int       `json:"id"`
 	Description string    `json:"description"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
+
+const filePath = "tasks.json"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -36,6 +38,15 @@ func main() {
 		for _, task := range tasks {
 			fmt.Println(task)
 		}
+		return
+	} else if command == "add" {
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task description")
+			return
+		}
+		description := os.Args[2]
+		task := insertTask(description)
+		fmt.Printf("success add task with id: %d\n", task.Id)
 		return
 	}
 }
@@ -59,9 +70,62 @@ func getTasks(status string) []Task {
 	return filteredTasks
 }
 
-func safeReadFile() ([]Task, error) {
-	filePath := "tasks.json"
+func insertTask(description string) Task {
+	allTasks, err := safeReadFile()
+	if err != nil {
+		panic(err)
+	}
+	lastId := 0
+	if len(allTasks) > 0 {
+		lastTask := allTasks[len(allTasks)-1]
+		lastId = lastTask.Id
+	}
+	task := Task{
+		Id:          lastId + 1,
+		Description: description,
+	}
+	allTasks = append(allTasks, task)
 
+	// write file
+	jsonBytes, err := json.Marshal(allTasks)
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
+		panic(err)
+	}
+
+	return task
+}
+
+func updateStatus(id int, status string) Task {
+	allTasks, err := safeReadFile()
+	if err != nil {
+		panic(err)
+	}
+	var selectedTask Task
+	for _, task := range allTasks {
+		if task.Id == id {
+			task.Status = status
+			selectedTask = task
+			break
+		}
+	}
+	if selectedTask {
+		// write file
+		jsonBytes, err := json.Marshal(allTasks)
+		if err != nil {
+			panic(err)
+		}
+		if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
+			panic(err)
+
+		}
+	}
+
+}
+
+func safeReadFile() ([]Task, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
