@@ -89,6 +89,50 @@ func main() {
 
 		fmt.Println(task)
 		return
+	} else if command == "mark-in-progress" {
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task id")
+			return
+		}
+
+		id, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("failed cast to integer: %s\n", err)
+			return
+		}
+		status := "in-progress"
+		taskUpdate := &TaskUpdate{
+			Status: &status,
+		}
+		task, err := updateTask(id, *taskUpdate)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println(task)
+		return
+	} else if command == "mark-done" {
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task id")
+			return
+		}
+
+		id, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("failed cast to integer: %s\n", err)
+			return
+		}
+		status := "done"
+		taskUpdate := &TaskUpdate{
+			Status: &status,
+		}
+		task, err := updateTask(id, *taskUpdate)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println(task)
+		return
 	}
 }
 
