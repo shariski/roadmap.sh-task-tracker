@@ -133,6 +133,25 @@ func main() {
 
 		fmt.Println(task)
 		return
+	} else if command == "delete" {
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task id")
+			return
+		}
+
+		id, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("failed cast to integer: %s\n", err)
+			return
+		}
+
+		task, err := deleteTask(id)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println(task)
+		return
 	}
 }
 
@@ -198,6 +217,32 @@ func updateTask(id int, update TaskUpdate) (*Task, error) {
 			if update.Status != nil {
 				task.Status = *update.Status
 			}
+
+			jsonBytes, err := json.MarshalIndent(allTasks, "", "  ")
+			if err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(filePath, jsonBytes, 0644); err != nil {
+				return nil, err
+			}
+
+			return task, nil
+		}
+	}
+
+	return nil, fmt.Errorf("task with id %d not found", id)
+}
+
+func deleteTask(id int) (*Task, error) {
+	allTasks, err := safeReadFile()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range *allTasks {
+		task := &(*allTasks)[i]
+		if task.Id == id {
+			*allTasks = append((*allTasks)[:i], (*allTasks)[i+1:]...)
 
 			jsonBytes, err := json.MarshalIndent(allTasks, "", "  ")
 			if err != nil {
