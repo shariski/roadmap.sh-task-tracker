@@ -31,7 +31,8 @@ func main() {
 	}
 
 	command := os.Args[1]
-	if command == "list" {
+	switch command {
+	case "list":
 		status := "ALL"
 		if len(os.Args) > 2 {
 			status = os.Args[2]
@@ -48,8 +49,9 @@ func main() {
 		for _, task := range *tasks {
 			fmt.Println(task)
 		}
+
 		return
-	} else if command == "add" {
+	case "add":
 		if len(os.Args) < 3 {
 			fmt.Println("please fill task description")
 			return
@@ -62,8 +64,9 @@ func main() {
 		}
 
 		fmt.Printf("success add task with id: %d\n", task.Id)
+
 		return
-	} else if command == "update" {
+	case "update":
 		if len(os.Args) < 3 {
 			fmt.Println("please fill task id")
 			return
@@ -88,8 +91,29 @@ func main() {
 		}
 
 		fmt.Println(task)
+
 		return
-	} else if command == "mark-in-progress" {
+	case "delete":
+		if len(os.Args) < 3 {
+			fmt.Println("please fill task id")
+			return
+		}
+
+		id, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			fmt.Printf("failed cast to integer: %s\n", err)
+			return
+		}
+
+		task, err := deleteTask(id)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println(task)
+
+		return
+	case "mark-in-progress":
 		if len(os.Args) < 3 {
 			fmt.Println("please fill task id")
 			return
@@ -110,8 +134,9 @@ func main() {
 		}
 
 		fmt.Println(task)
+
 		return
-	} else if command == "mark-done" {
+	case "mark-done":
 		if len(os.Args) < 3 {
 			fmt.Println("please fill task id")
 			return
@@ -132,25 +157,11 @@ func main() {
 		}
 
 		fmt.Println(task)
+
 		return
-	} else if command == "delete" {
-		if len(os.Args) < 3 {
-			fmt.Println("please fill task id")
-			return
-		}
+	default:
+		fmt.Println("please insert valid command")
 
-		id, err := strconv.Atoi(os.Args[2])
-		if err != nil {
-			fmt.Printf("failed cast to integer: %s\n", err)
-			return
-		}
-
-		task, err := deleteTask(id)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		fmt.Println(task)
 		return
 	}
 }
@@ -187,6 +198,9 @@ func insertTask(description string) (*Task, error) {
 	task := Task{
 		Id:          lastId + 1,
 		Description: description,
+		Status:      "todo",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 	*allTasks = append(*allTasks, task)
 
@@ -213,9 +227,11 @@ func updateTask(id int, update TaskUpdate) (*Task, error) {
 		if task.Id == id {
 			if update.Description != nil {
 				task.Description = *update.Description
+				task.UpdatedAt = time.Now()
 			}
 			if update.Status != nil {
 				task.Status = *update.Status
+				task.UpdatedAt = time.Now()
 			}
 
 			jsonBytes, err := json.MarshalIndent(allTasks, "", "  ")
